@@ -6,8 +6,9 @@ from datetime import datetime
 from django.http import JsonResponse
 from django.db import connection
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 
-
+@require_http_methods(["GET"])
 def sports_with_name_regex(request, regex):
 
     with connection.cursor() as cursor:
@@ -60,7 +61,7 @@ def sports_with_name_regex(request, regex):
         
     return JsonResponse({'sports': sport_list,'events':event_list,'selections':selection_list})
 
-
+@require_http_methods(["GET"])
 def events_with_active_threshold(request, threshold):
     with connection.cursor() as cursor:
         # Execute raw SQL query to fetch events with minimum number of active selections higher than threshold
@@ -103,6 +104,7 @@ def events_with_active_threshold(request, threshold):
 #     tz = timezone("Asia/Kolkata")
 
 @csrf_exempt    
+@require_http_methods(["POST"])
 def events_in_timeframe(request):
 
     data = json.loads(request.body)

@@ -5,10 +5,12 @@ from datetime import datetime
 from django.http import JsonResponse
 from django.db import connection
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 
 # CRUD - SELECTION
 
 @csrf_exempt
+@require_http_methods(["POST"])
 def create_selection(request):
     try:
         data = json.loads(request.body)
@@ -31,6 +33,7 @@ def create_selection(request):
         # Handle other unexpected exceptions
         return JsonResponse({'error': 'An error occurred '+ str(e)}, status=500)
 
+@require_http_methods(["GET"])
 def get_all_selections(request):
     try:
         with connection.cursor() as cursor:
@@ -55,6 +58,7 @@ def get_all_selections(request):
         # Handle other unexpected exceptions
         return JsonResponse({'error': 'An error occurred '+ str(e)}, status=500)
 
+@require_http_methods(["GET"])
 def get_selection(request, selection_id):
     try:
         with connection.cursor() as cursor:
@@ -77,7 +81,9 @@ def get_selection(request, selection_id):
     except Exception as e:
         # Handle other unexpected exceptions
         return JsonResponse({'error': 'An error occurred '+ str(e)}, status=500)
+
 @csrf_exempt
+@require_http_methods(["PUT"])
 def update_selection(request, selection_id):
     try:
         if get_selection_by_id(selection_id):
@@ -119,6 +125,7 @@ def update_selection(request, selection_id):
         # Handle other unexpected exceptions
         return JsonResponse({'error': 'An error occurred '+ str(e)}, status=500)
 
+@require_http_methods(["DELETE"])
 def delete_selection(request, selection_id):
     try:
         if get_selection_by_id(selection_id):

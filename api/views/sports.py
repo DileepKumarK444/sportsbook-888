@@ -5,11 +5,13 @@ from datetime import datetime
 from django.http import JsonResponse
 from django.db import connection
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 
 
 # CRUD - SPORTS
 
 @csrf_exempt
+@require_http_methods(["POST"])
 def create_sport(request):
     try:
         data = json.loads(request.body)
@@ -25,7 +27,7 @@ def create_sport(request):
     except Exception as e:
         # Handle other unexpected exceptions
         return JsonResponse({'error': 'An error occurred'+str(e)}, status=500)
-
+@require_http_methods(["GET"])
 def get_all_sports(request):
     try:
         with connection.cursor() as cursor:
@@ -47,7 +49,7 @@ def get_all_sports(request):
     except Exception as e:
         # Handle other unexpected exceptions
         return JsonResponse({'error': 'An error occurred '+ str(e)}, status=500)
-
+@require_http_methods(["GET"])
 def get_sport(request, sport_id):
     try:
         with connection.cursor() as cursor:
@@ -69,6 +71,7 @@ def get_sport(request, sport_id):
         # Handle other unexpected exceptions
         return JsonResponse({'error': 'An error occurred '+ str(e)}, status=500)
 @csrf_exempt
+@require_http_methods(["PUT"])
 def update_sport(request, sport_id):
     try:
         if get_sport_by_id(sport_id):
@@ -91,6 +94,7 @@ def update_sport(request, sport_id):
         # Handle other unexpected exceptions
         return JsonResponse({'error': 'An error occurred '+ str(e)}, status=500)
 @csrf_exempt
+@require_http_methods(["DELETE"])
 def delete_sport(request, sport_id):
     try:
         if get_sport_by_id(sport_id):
@@ -101,6 +105,7 @@ def delete_sport(request, sport_id):
             return JsonResponse({'message': 'Sport deleted'})
         else:
             return JsonResponse({'error': 'Sport not found'}, status=404)
+        
     except Exception as e:
         # Handle other unexpected exceptions
         return JsonResponse({'error': 'An error occurred '+ str(e)}, status=500)

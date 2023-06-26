@@ -1,4 +1,5 @@
 import json
+import pytz
 
 from datetime import datetime
 
@@ -75,12 +76,15 @@ def get_event(request, event_id):
 
         if event:
             event_data = {
-                'id':event_id,
+                'id': event[0],
                 'name': event[1],
                 'slug': event[2],
                 'active': event[3],
                 'type': event[4],
-                'sport_id': event[5]
+                'sport_id': event[7],
+                'status' : event[5],
+                'scheduled_start' : event[8],
+                'actual_start' : event[6],
             }
             return JsonResponse({'event': event_data})
         else:
@@ -119,35 +123,14 @@ def update_event(request, event_id):
                         "UPDATE event SET actual_start = %s WHERE id = %s",
                         [datetime.utcnow(), event_id]
                     )
-
-            # Check if all selections for the event are inactive
-            if active == False:
-
-                # Check if all events for the sport are inactive
-                with connection.cursor() as cursor:
-                    # Execute raw SQL query to check if all events of the sport are inactive
-                    cursor.execute(
-                        "SELECT COUNT(*) FROM event WHERE sport_id = %s AND active = %s",
-                        [sport_id, True]
-                    )
-                    result = cursor.fetchone()
-
-                    if result[0] == 0:
-                        # All events are inactive, update sport's active status
-                        cursor.execute(
-                            "UPDATE sport SET active = %s WHERE id = %s",
-                            [False, sport_id]
-                        )
-                        
-                
-
+            check_event_active(sport_id)
             return JsonResponse({'message': 'Event updated'})
         else:
             return JsonResponse({'error': 'Event not found'}, status=404)
     except Exception as e:
         # Handle other unexpected exceptions
         return JsonResponse({'error': 'An error occurred '+ str(e)}, status=500)
-
+@csrf_exempt
 @require_http_methods(["DELETE"])
 def delete_event(request, event_id):
     try:
@@ -164,6 +147,54 @@ def delete_event(request, event_id):
         return JsonResponse({'error': 'An error occurred '+ str(e)}, status=500)
 
 
+def check_event_active(sport_id):
+    # if active == False:
+    # Check if all events for the sport are inactive
+    with connection.cursor() as cursor:
+        # Execute raw SQL query to check if all events of the sport are inactive
+        cursor.execute(
+            "SELECT COUNT(*) FROM event WHERE sport_id = %s AND active = %s",
+            [sport_id, True]
+        )
+        result = cursor.fetchone()
+        if result[0] == 0:
+            # All events are inactive, update sport's active status
+            cursor.execute(
+                "UPDATE sport SET active = %s WHERE id = %s",
+                [False, sport_id]
+            )
+        else:
+            cursor.execute(
+                "UPDATE sport SET active = %s WHERE id = %s",
+                [True, sport_id]
+            )
+    return True
+
+@csrf_exempt
+@require_http_methods(["PUT"])
+def activate_event(request):
+    try:
+        data = json.loads(request.body)
+        active = data['active']
+        event_id = data['event_id']
+        sport_id = data['sport_id']
+        if get_event_by_id(event_id):
+            with connection.cursor() as cursor:
+                # Execute raw SQL query to update a active field of event by ID
+                cursor.execute(
+                    "UPDATE event SET active = %s WHERE id = %s",
+                    [active, event_id]
+                )
+            # if active == False:
+            check_event_active(sport_id)
+
+            return JsonResponse({'message': 'Event status changed'})
+        else:
+            return JsonResponse({'error': 'Event not found'}, status=404)
+    except Exception as e:
+        # Handle other unexpected exceptions
+        return JsonResponse({'error': 'An error occurred '+ str(e)}, status=500)
+
 def get_event_by_id(event_id):
     with connection.cursor() as cursor:
         # Execute raw SQL query to fetch a specific event by ID
@@ -173,3 +204,105 @@ def get_event_by_id(event_id):
     if event:
         return True
     return False
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def search_event(request):
+    data = json.loads(request.body)
+    name = data['name']
+    active = data['active']
+    status = data['status']
+    threshold = data['threshold']
+
+    timezone = data['timezone']
+
+    # convert local time to UTC
+    start_time = ''
+    end_time = ''
+    if data['start_time'] != '' and data['end_time'] !='':
+        start_time = local_to_utc(data['start_time'],timezone)
+        end_time = local_to_utc(data['end_time'],timezone)
+
+    # print(start_time)
+
+
+    with connection.cursor() as cursor:
+
+        with connection.cursor() as cursor:
+            if threshold != '' and threshold >0:
+                query = "SELECT * FROM event as e INNER JOIN selection as s on e.id = s.event_id WHERE s.active=true "    
+            else:
+                query = "SELECT * FROM event as e WHERE 1=1"
+            params = []
+
+            if name != '':
+                query += " AND e.name REGEXP %s"
+                params.append(name)
+
+            if active != '':
+                query += " AND e.active = %s"
+                params.append(active)
+            
+            if status != '':
+                query += " AND e.status = %s"
+                params.append(status)
+
+            if start_time !='' and end_time !='':
+                query += " AND scheduled_start >= %s AND scheduled_start <= %s"
+                params.append(start_time)
+                params.append(end_time)
+                
+            cursor.execute(query, params)
+
+            events = cursor.fetchall()
+            event_list = []
+            for event in events:
+                scheduled_start = ''
+                actual_start = ''
+
+                if event[8] != None:
+                    scheduled_start = utc_to_local(event[8],timezone)
+                if event[6] != None:
+                    actual_star = utc_to_local(event[6],timezone)
+                event_data = {
+                    'id': event[0],
+                    'name': event[1],
+                    'slug': event[2],
+                    'active': event[3],
+                    'type': event[4],
+                    'sport_id': event[7],
+                    'status' : event[5],
+                    'scheduled_start' : scheduled_start,
+                    'actual_start' : actual_start,
+                }
+                event_list.append(event_data)
+    return JsonResponse({'events': event_list})
+
+def local_to_utc(dt,tz):
+
+    formatted_datetime = dt
+
+    given_datetime = datetime.strptime(formatted_datetime, '%Y-%m-%d %H:%M:%S')
+
+    given_timezone = pytz.timezone(tz)
+
+    localized_datetime = given_timezone.localize(given_datetime)
+
+    utc_datetime = localized_datetime.astimezone(pytz.UTC)
+
+    formatted_datetime = utc_datetime.strftime('%Y-%m-%d %H:%M:%S %Z%z')
+
+    return formatted_datetime
+
+def utc_to_local(dt,tz):
+
+    dt = datetime.strptime(str(dt), "%Y-%m-%d %H:%M:%S.%f")
+
+    utc_timezone = pytz.UTC
+    utc_dt = dt.replace(tzinfo=utc_timezone)
+
+    local_timezone = pytz.timezone(tz)
+
+    local_datetime = utc_dt.astimezone(local_timezone)
+
+    return local_datetime

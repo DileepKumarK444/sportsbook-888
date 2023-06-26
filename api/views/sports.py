@@ -110,6 +110,29 @@ def delete_sport(request, sport_id):
         # Handle other unexpected exceptions
         return JsonResponse({'error': 'An error occurred '+ str(e)}, status=500)
 
+
+@csrf_exempt
+@require_http_methods(["PUT"])
+def activate_sport(request):
+    try:
+        data = json.loads(request.body)
+        active = data['active']
+        sport_id = data['sport_id']
+        if get_sport_by_id(sport_id):
+            with connection.cursor() as cursor:
+                # Execute raw SQL query to update a active field of sport by ID
+                cursor.execute(
+                    "UPDATE sport SET active = %s WHERE id = %s",
+                    [active, sport_id]
+                )
+
+            return JsonResponse({'message': 'Sport status changed'})
+        else:
+            return JsonResponse({'error': 'Sport not found'}, status=404)
+    except Exception as e:
+        # Handle other unexpected exceptions
+        return JsonResponse({'error': 'An error occurred '+ str(e)}, status=500)
+
 def get_sport_by_id(sport_id):
     with connection.cursor() as cursor:
         # Execute raw SQL query to fetch a specific sport by ID
@@ -118,3 +141,45 @@ def get_sport_by_id(sport_id):
     if sport:
         return True
     return False
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def search_sport(request):
+    data = json.loads(request.body)
+    name = data['name']
+    active = data['active']
+    threshold = data['threshold']
+
+    with connection.cursor() as cursor:
+
+        with connection.cursor() as cursor:
+            if threshold != '' and threshold >0:
+                query = "SELECT * FROM sport as s INNER JOIN event as e on s.id = e.sport_id WHERE e.active=true "    
+            else:
+                query = "SELECT * FROM sport as s WHERE 1=1"
+            params = []
+
+            if name != '':
+                query += " AND s.name REGEXP %s"
+                params.append(name)
+
+            if active != '':
+                query += " AND s.active = %s"
+                params.append(active)
+            
+            cursor.execute(query, params)
+
+            sports = cursor.fetchall()
+            sport_list = []
+            for sport in sports:
+                sport_data = {
+                    'name': sport[1],
+                    'slug': sport[2],
+                    'active': sport[3]
+                }
+                sport_list.append(sport_data)
+    return JsonResponse({'sports': sport_list})
+
+    # Add more conditions as needed
+
+    

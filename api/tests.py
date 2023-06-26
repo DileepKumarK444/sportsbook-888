@@ -202,6 +202,7 @@ class SelectionAPITestCase(TestCase):
         data = {
             'name': 'Updated Selection',
             'event_id': 1,
+            'sport_id' : 1,
             'price' : 12.0,
             'active': True,
             'outcome': 'Outcome 1'
@@ -254,44 +255,3 @@ class SportAndEventTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {'message': 'Event created'})
     
-    # def test_create_selection(self):
-    #     # First, create the sport record
-    #     self.test_create_event()
-
-    #     url = reverse('create_selection')
-    #     data = {
-    #         'name': 'Selection 1',
-    #         'event_id': 1,
-    #         'price' : 12.0,
-    #         'active': True,
-    #         'outcome': 'Outcome 1'
-    #     }
-    #     response = self.client.post(url, json.dumps(data), content_type='application/json')
-    #     self.assertEqual(response.status_code, 200)
-    #     self.assertEqual(response.json(), {'message': 'Selection created'})
-    
-    def test_sports_with_name_regex(self):
-        self.test_create_sport()
-        url = reverse('sports_with_name_regex', args=['regex-pattern'])
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-        # Assert the response contains the expected sports data
-
-    def test_events_with_active_threshold(self):
-        self.test_create_event()
-        url = reverse('events_with_active_threshold', args=[0])
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-        # Assert the response contains the expected events data
-
-    def test_events_in_timeframe(self):
-        self.test_create_event()
-        data = {
-            'start_time': '2023-06-24T10:00:00Z',
-            'end_time': '2023-06-25T10:00:00Z',
-            'timezone': 'America/New_York'
-        }
-        url = reverse('events_in_timeframe')
-        response = self.client.post(url,json.dumps(data), content_type='application/json')
-        self.assertEqual(response.status_code, 200)
-        # Assert the response contains the expected events data

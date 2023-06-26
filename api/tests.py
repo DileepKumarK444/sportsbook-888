@@ -1,5 +1,8 @@
 from django.test import TestCase, Client
 from django.urls import reverse
+from .models import Sport, Event,Selection
+from django.utils import timezone
+
 import json
 
 class SportAPITestCase(TestCase):
@@ -255,3 +258,158 @@ class SportAndEventTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {'message': 'Event created'})
     
+
+class SportSearchTestCase(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.url = reverse('search_sport')
+        sport1 = Sport.objects.create(name='Football', slug='football', active=True)
+        sport2 = Sport.objects.create(name='Basketball', slug='basketball', active=True)
+        event1 = Event.objects.create(name='Event 1', slug='event-1', active=True, type='Type 1', sport=sport1, status='Started')
+        event2 = Event.objects.create(name='Event 2', slug='event-2', active=True, type='Type 2', sport=sport2, status='Started')
+        event3 = Event.objects.create(name='Event 3', slug='event-3', active=False, type='Type 3', sport=sport1, status='Ended')
+
+    def test_search_sport_with_threshold(self):
+        # Make a request to the view
+        data = {
+            'name': '',
+            'active': '',
+            'threshold': 0
+        }
+        response = self.client.post(self.url, json.dumps(data), content_type='application/json')
+
+        # Verify the response
+        print('response',response.content)
+        self.assertEqual(response.status_code, 200)
+        expected_data = {
+            'sports': [
+                {'name': 'Football', 'slug': 'football', 'active': True},
+                {'name': 'Basketball', 'slug': 'basketball', 'active': True},
+            ]
+        }
+        self.assertEqual(json.loads(response.content.decode('utf-8')), expected_data)
+
+    def test_search_sport_without_threshold(self):
+        
+        # Make a request to the view
+        data = {
+            'name': '',
+            'active': '',
+            'threshold': ''
+        }
+        response = self.client.post(self.url, json.dumps(data), content_type='application/json')
+
+        # Verify the response
+        self.assertEqual(response.status_code, 200)
+        expected_data = {
+            'sports': [
+                {'name': 'Football', 'slug': 'football', 'active': True},
+                {'name': 'Basketball', 'slug': 'basketball', 'active': True},
+            ]
+        }
+        self.assertEqual(json.loads(response.content.decode('utf-8')), expected_data)
+
+
+class SearchEventTestCase(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.url = reverse('search_event')
+        sport = Sport.objects.create(name='Football', slug='football', active=True)
+
+        # Create Event instances and save them to the database
+        event1 = Event.objects.create(
+            name='Event 1',
+            slug='event-1',
+            active=True,
+            type='Type 1',
+            sport=sport,
+            status='Started',
+            scheduled_start=timezone.now(),
+            actual_start=timezone.now()
+        )
+
+        event2 = Event.objects.create(
+            name='Event 2',
+            slug='event-2',
+            active=True,
+            type='Type 2',
+            sport=sport,
+            status='Pending',
+            scheduled_start=timezone.now(),
+            actual_start=None
+        )
+
+    def test_search_event(self):
+
+        data = {
+            'name': 'Event',
+            'active': True,
+            'status': '',
+            'threshold': '',
+            'timezone': 'America/New_York',
+            'start_time': '2023-06-15 10:00:00',
+            'end_time': '2023-06-27 18:00:00'
+        }
+        response = self.client.post(self.url, json.dumps(data), content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        event_list = response.json().get('events')
+        self.assertIsNotNone(event_list)
+        self.assertGreater(len(event_list), 0)
+        # Add more assertions to validate the returned event data
+        self.assertEqual(event_list[0]['name'], 'Event 1')
+
+    def test_search_event_with_empty_parameters(self):
+
+
+        data = {
+            'name': '',
+            'active': '',
+            'status': '',
+            'threshold': '',
+            'timezone': 'Asia/Kolkata',
+            'start_time': '',
+            'end_time': ''
+        }
+        response = self.client.post(self.url, json.dumps(data), content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        event_list = response.json().get('events')
+        self.assertIsNotNone(event_list)
+        self.assertEqual(len(event_list), 2)
+
+
+
+class SearchSelectionTestCase(TestCase):
+    def setUp(self):
+        self.client = Client()
+        # Insert sample data into the database for testing
+        sport = Sport.objects.create(name='Football', slug='football', active=True)
+        event = Event.objects.create(
+            name='Match 1',
+            slug='match-1',
+            active=True,
+            type='Football Match',
+            sport=sport,
+            status='Pending',
+            scheduled_start='2023-06-15T10:00:00Z',
+            actual_start=None
+        )
+        selection = Selection.objects.create(
+            name='Selection 1',
+            event=event,
+            price=1.5,
+            active=True,
+            outcome='Win'
+        )
+    
+    def test_search_selection(self):
+        data = {
+            'name': 'Selection 1',
+            'active': 'true',
+            'outcome': 'Win',
+            'price_from': '1.0',
+            'price_to': '2.0',
+            'price_condtion': 'bw'
+        }
+
+        response = self.client.post('/search-selection/', json.dumps(data), content_type='application/json')
+        self.assertEqual(response.status_code, 200)

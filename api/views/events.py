@@ -238,11 +238,27 @@ def search_event(request):
     with connection.cursor() as cursor:
 
         with connection.cursor() as cursor:
+            params = []
             if threshold != '' and threshold >0:
-                query = "SELECT * FROM event as e INNER JOIN selection as s on e.id = s.event_id WHERE s.active=true "    
+                # query = "SELECT * FROM event as e INNER JOIN selection as s on e.id = s.event_id WHERE s.active=true "    
+                # query = '''SELECT * FROM event as e JOIN ( 
+                #         SELECT event_id, COUNT(*) AS active_count 
+                #         FROM selection 
+                #         WHERE active = 1 
+                #         GROUP BY event_id 
+                #         ) AS selection_count 
+                #         ON e.id = selection_count.event_id 
+                #         WHERE selection_count.active_count > %s '''
+                # params.append(threshold)
+                query = '''
+                        SELECT e.*, COUNT(s.id) AS active_selection_count
+                        FROM event AS e
+                        INNER JOIN selection AS s ON e.id = s.event_id
+                        WHERE s.active = 1
+                '''
             else:
                 query = "SELECT * FROM event as e WHERE 1=1"
-            params = []
+            
 
             if name != '':
                 query += " AND e.name REGEXP %s"
@@ -260,7 +276,14 @@ def search_event(request):
                 query += " AND scheduled_start >= %s AND scheduled_start <= %s"
                 params.append(start_time)
                 params.append(end_time)
-                
+            
+            if threshold != '' and threshold >0:
+                query += '''
+                        GROUP BY e.id
+                        HAVING COUNT(s.id) > %s
+                        '''
+                params.append(threshold)
+
             cursor.execute(query, params)
 
             events = cursor.fetchall()
@@ -269,9 +292,9 @@ def search_event(request):
                 scheduled_start = ''
                 actual_start = ''
 
-                if event[8] != None:
+                if event[8] != None and timezone != '':
                     scheduled_start = utc_to_local(event[8],timezone)
-                if event[6] != None:
+                if event[6] != None and timezone != '':
                     actual_star = utc_to_local(event[6],timezone)
                 event_data = {
                     'id': event[0],

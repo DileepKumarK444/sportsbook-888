@@ -157,15 +157,31 @@ def search_sport(request):
     name = data['name']
     active = data['active']
     threshold = data['threshold']
-
     with connection.cursor() as cursor:
 
         with connection.cursor() as cursor:
+            params = []
             if threshold != '' and threshold >0:
-                query = "SELECT * FROM sport as s INNER JOIN event as e on s.id = e.sport_id WHERE e.active=true "    
+                # query = "SELECT * FROM sport as s INNER JOIN event as e on s.id = e.sport_id WHERE e.active=true "    
+                # query = '''SELECT * FROM sport as s JOIN ( 
+                #         SELECT sport_id, COUNT(*) AS active_count 
+                #         FROM event 
+                #         WHERE active = 1 
+                #         GROUP BY sport_id 
+                #         ) AS event_count 
+                #         ON s.id = event_count.sport_id 
+                #         WHERE event_count.active_count > %s'''
+
+                query = '''
+                        SELECT s.*, COUNT(e.id) AS active_events_count
+                        FROM sport AS s
+                        INNER JOIN event AS e ON s.id = e.sport_id
+                        WHERE e.active = 1 
+                        '''
+                # params.append(threshold)
             else:
                 query = "SELECT * FROM sport as s WHERE 1=1"
-            params = []
+            
 
             if name != '':
                 query += " AND s.name REGEXP %s"
@@ -174,10 +190,16 @@ def search_sport(request):
             if active != '':
                 query += " AND s.active = %s"
                 params.append(active)
-            
+            if threshold != '' and threshold >0:
+                query += '''
+                            GROUP BY s.id
+                            HAVING COUNT(e.id) > %s'''
+                params.append(threshold)
+
             cursor.execute(query, params)
 
             sports = cursor.fetchall()
+            # print('sports',sports)
             sport_list = []
             for sport in sports:
                 sport_data = {

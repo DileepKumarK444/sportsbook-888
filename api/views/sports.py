@@ -1,6 +1,7 @@
 import json
 
 from datetime import datetime
+from django.core.cache import cache
 
 from django.http import JsonResponse
 from django.db import connection
@@ -22,7 +23,7 @@ def create_sport(request):
         with connection.cursor() as cursor:
             # Execute raw SQL query to insert a new sport
             cursor.execute("INSERT INTO sport (name, slug, active) VALUES (%s, %s, %s)",[name, slug, active])
-
+        cache.delete('all_sports')
         return JsonResponse({'message': 'Sport created'})
     except Exception as e:
         # Handle other unexpected exceptions
@@ -30,20 +31,27 @@ def create_sport(request):
 @require_http_methods(["GET"])
 def get_all_sports(request):
     try:
-        with connection.cursor() as cursor:
-            # Execute raw SQL query to fetch all sports
-            cursor.execute("SELECT * FROM sport")
-            sports = cursor.fetchall()
+        cache_key = 'all_sports'
+        sports = cache.get(cache_key)
+        if not sports:
+            with connection.cursor() as cursor:
+                # Execute raw SQL query to fetch all sports
+                cursor.execute("SELECT * FROM sport")
+                sports = cursor.fetchall()
 
-        sport_list = []
-        for sport in sports:
-            sport_data = {
-                'id':sport[0],
-                'name': sport[1],
-                'slug': sport[2],
-                'active': sport[3]
-            }
-            sport_list.append(sport_data)
+            sport_list = []
+            for sport in sports:
+                sport_data = {
+                    'id':sport[0],
+                    'name': sport[1],
+                    'slug': sport[2],
+                    'active': sport[3]
+                }
+                sport_list.append(sport_data)
+            cache.set(cache_key, sport_list)
+        else:
+            # Data retrieved from cache
+            sport_list = sports
 
         return JsonResponse({'sports': sport_list})
     except Exception as e:
@@ -86,7 +94,7 @@ def update_sport(request, sport_id):
                     "UPDATE sport SET name = %s, slug = %s, active = %s WHERE id = %s",
                     [name, slug, active, sport_id]
                 )
-
+            cache.delete('all_sports')
             return JsonResponse({'message': 'Sport updated'})
         else:
             return JsonResponse({'error': 'Sport not found'}, status=404)
@@ -101,7 +109,7 @@ def delete_sport(request, sport_id):
             with connection.cursor() as cursor:
                 # Execute raw SQL query to delete a specific sport by ID
                 cursor.execute("DELETE FROM sport WHERE id = %s", [sport_id])
-
+            cache.delete('all_sports')
             return JsonResponse({'message': 'Sport deleted'})
         else:
             return JsonResponse({'error': 'Sport not found'}, status=404)

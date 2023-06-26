@@ -1,6 +1,7 @@
 import json
 
 from datetime import datetime
+from django.core.cache import cache
 
 from django.http import JsonResponse
 from django.db import connection
@@ -36,24 +37,31 @@ def create_selection(request):
 @require_http_methods(["GET"])
 def get_all_selections(request):
     try:
-        with connection.cursor() as cursor:
-            # Execute raw SQL query to fetch all selections
-            cursor.execute("SELECT * FROM selection as s "
-                            "INNER JOIN event e on e.id = s.event_id "
-                            )
-            selections = cursor.fetchall()
-        selection_list = []
-        for selection in selections:
-            selection_data = {
-                'id': selection[0],
-                'name': selection[1],
-                'event_id': selection[5],
-                'price': selection[2],
-                'active': selection[3],
-                'outcome': selection[4],
-                'sport_id': selection[13]
-            }
-            selection_list.append(selection_data)
+        cache_key = 'all_selections'
+        selections = cache.get(cache_key)
+        if not selections:
+            with connection.cursor() as cursor:
+                # Execute raw SQL query to fetch all selections
+                cursor.execute("SELECT * FROM selection as s "
+                                "INNER JOIN event e on e.id = s.event_id "
+                                )
+                selections = cursor.fetchall()
+            selection_list = []
+            for selection in selections:
+                selection_data = {
+                    'id': selection[0],
+                    'name': selection[1],
+                    'event_id': selection[5],
+                    'price': selection[2],
+                    'active': selection[3],
+                    'outcome': selection[4],
+                    'sport_id': selection[13]
+                }
+                selection_list.append(selection_data)
+            cache.set(cache_key, selection_list)
+        else:
+            # Data retrieved from cache
+            selection_list = selections
 
         return JsonResponse({'selections': selection_list})
     except Exception as e:
@@ -110,7 +118,7 @@ def update_selection(request, selection_id):
 
             # if active == False:
             check_selection_active(event_id,sport_id)
-
+            cache.delete('all_selections')
             return JsonResponse({'message': 'Selection updated'})
         else:
             return JsonResponse({'error': 'Selection not found'}, status=404)
@@ -125,7 +133,7 @@ def delete_selection(request, selection_id):
             with connection.cursor() as cursor:
                 # Execute raw SQL query to delete a specific selection by ID
                 cursor.execute("DELETE FROM selection WHERE id = %s", [selection_id])
-
+            cache.delete('all_selections')
             return JsonResponse({'message': 'Selection deleted'})
         else:
             return JsonResponse({'error': 'Selection not found'}, status=404)

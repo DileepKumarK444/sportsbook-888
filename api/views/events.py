@@ -2,6 +2,7 @@ import json
 import pytz
 
 from datetime import datetime
+from django.core.cache import cache
 
 from django.http import JsonResponse
 from django.db import connection
@@ -32,7 +33,7 @@ def create_event(request):
                 "VALUES (%s, %s, %s, %s, %s,%s,%s)",
                 [name, slug, active, event_type, sport_id,status,scheduled_start]
             )
-
+        cache.delete('all_events')
         return JsonResponse({'message': 'Event created'})
     except Exception as e:
         # Handle other unexpected exceptions
@@ -41,25 +42,32 @@ def create_event(request):
 @require_http_methods(["GET"])
 def get_all_events(request):
     try:
-        with connection.cursor() as cursor:
-            # Execute raw SQL query to fetch all events
-            cursor.execute("SELECT * FROM event")
-            events = cursor.fetchall()
+        cache_key = 'all_events'
+        events = cache.get(cache_key)
+        if not events:
+            with connection.cursor() as cursor:
+                # Execute raw SQL query to fetch all events
+                cursor.execute("SELECT * FROM event")
+                events = cursor.fetchall()
 
-        event_list = []
-        for event in events:
-            event_data = {
-                'id': event[0],
-                'name': event[1],
-                'slug': event[2],
-                'active': event[3],
-                'type': event[4],
-                'sport_id': event[7],
-                'status' : event[5],
-                'scheduled_start' : event[8],
-                'actual_start' : event[6],
-            }
-            event_list.append(event_data)
+            event_list = []
+            for event in events:
+                event_data = {
+                    'id': event[0],
+                    'name': event[1],
+                    'slug': event[2],
+                    'active': event[3],
+                    'type': event[4],
+                    'sport_id': event[7],
+                    'status' : event[5],
+                    'scheduled_start' : event[8],
+                    'actual_start' : event[6],
+                }
+                event_list.append(event_data)
+            cache.set(cache_key, event_list)
+        else:
+            # Data retrieved from cache
+            event_list = events
 
         return JsonResponse({'events': event_list})
     except Exception as e:
@@ -124,6 +132,7 @@ def update_event(request, event_id):
                         [datetime.utcnow(), event_id]
                     )
             check_event_active(sport_id)
+            cache.delete('all_events')
             return JsonResponse({'message': 'Event updated'})
         else:
             return JsonResponse({'error': 'Event not found'}, status=404)
@@ -138,7 +147,7 @@ def delete_event(request, event_id):
             with connection.cursor() as cursor:
                 # Execute raw SQL query to delete a specific event by ID
                 cursor.execute("DELETE FROM event WHERE id = %s", [event_id])
-
+            cache.delete('all_events')
             return JsonResponse({'message': 'Event deleted'})
         else:
             return JsonResponse({'error': 'Event not found'}, status=404)

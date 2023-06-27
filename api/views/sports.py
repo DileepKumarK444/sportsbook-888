@@ -16,15 +16,18 @@ from django.views.decorators.http import require_http_methods
 def create_sport(request):
     try:
         data = json.loads(request.body)
-        # print('data',data)
         name = data['name']
         slug = data['slug']
         active = data['active']
+
+        if not name or not slug or active is None:
+            return JsonResponse({'error': 'Invalid data. Missing required fields.'}, status=400)
+
         with connection.cursor() as cursor:
             # Execute raw SQL query to insert a new sport
             cursor.execute("INSERT INTO sport (name, slug, active) VALUES (%s, %s, %s)",[name, slug, active])
         cache.delete('all_sports')
-        return JsonResponse({'message': 'Sport created'})
+        return JsonResponse({'message': 'Sport created'},status=200)
     except Exception as e:
         # Handle other unexpected exceptions
         return JsonResponse({'error': 'An error occurred'+str(e)}, status=500)
@@ -53,7 +56,7 @@ def get_all_sports(request):
             # Data retrieved from cache
             sport_list = sports
 
-        return JsonResponse({'sports': sport_list})
+        return JsonResponse({'sports': sport_list},status=200)
     except Exception as e:
         # Handle other unexpected exceptions
         return JsonResponse({'error': 'An error occurred '+ str(e)}, status=500)
@@ -72,7 +75,7 @@ def get_sport(request, sport_id):
                 'slug': sport[2],
                 'active': sport[3]
             }
-            return JsonResponse({'sport': sport_data})
+            return JsonResponse({'sport': sport_data},status=200)
         else:
             return JsonResponse({'error': 'Sport not found'}, status=404)
     except Exception as e:
@@ -87,6 +90,8 @@ def update_sport(request, sport_id):
             name = data['name']
             slug = data['slug']
             active = data['active']
+            if not name or not slug or active is None:
+                return JsonResponse({'error': 'Invalid data. Missing required fields.'}, status=400)
 
             with connection.cursor() as cursor:
                 # Execute raw SQL query to update a specific sport by ID
@@ -95,7 +100,7 @@ def update_sport(request, sport_id):
                     [name, slug, active, sport_id]
                 )
             cache.delete('all_sports')
-            return JsonResponse({'message': 'Sport updated'})
+            return JsonResponse({'message': 'Sport updated'},status=200)
         else:
             return JsonResponse({'error': 'Sport not found'}, status=404)
     except Exception as e:
@@ -110,7 +115,7 @@ def delete_sport(request, sport_id):
                 # Execute raw SQL query to delete a specific sport by ID
                 cursor.execute("DELETE FROM sport WHERE id = %s", [sport_id])
             cache.delete('all_sports')
-            return JsonResponse({'message': 'Sport deleted'})
+            return JsonResponse({'message': 'Sport deleted'},status=200)
         else:
             return JsonResponse({'error': 'Sport not found'}, status=404)
         
@@ -126,6 +131,9 @@ def activate_sport(request):
         data = json.loads(request.body)
         active = data['active']
         sport_id = data['sport_id']
+        if not sport_id or active is None:
+                return JsonResponse({'error': 'Invalid data. Missing required fields.'}, status=400)
+
         if get_sport_by_id(sport_id):
             with connection.cursor() as cursor:
                 # Execute raw SQL query to update a active field of sport by ID

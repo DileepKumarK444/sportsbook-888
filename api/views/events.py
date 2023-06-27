@@ -24,7 +24,11 @@ def create_event(request):
         event_type = data['type']
         sport_id = data['sport_id']
         status = 'Pending'
-        scheduled_start= datetime.utcnow()
+        scheduled_start= data['scheduled_start']
+
+        if not all([name, slug, event_type, sport_id, scheduled_start]) or active is None:
+            return JsonResponse({'error': 'Invalid data. Missing required fields.'}, status=400)
+
 
         with connection.cursor() as cursor:
             # Execute raw SQL query to insert a new event
@@ -34,7 +38,7 @@ def create_event(request):
                 [name, slug, active, event_type, sport_id,status,scheduled_start]
             )
         cache.delete('all_events')
-        return JsonResponse({'message': 'Event created'})
+        return JsonResponse({'message': 'Event created'},status=200)
     except Exception as e:
         # Handle other unexpected exceptions
         return JsonResponse({'error': 'An error occurred '+ str(e)}, status=500)
@@ -69,7 +73,7 @@ def get_all_events(request):
             # Data retrieved from cache
             event_list = events
 
-        return JsonResponse({'events': event_list})
+        return JsonResponse({'events': event_list},status=200)
     except Exception as e:
         # Handle other unexpected exceptions
         return JsonResponse({'error': 'An error occurred '+ str(e)}, status=500)
@@ -94,7 +98,7 @@ def get_event(request, event_id):
                 'scheduled_start' : event[8],
                 'actual_start' : event[6],
             }
-            return JsonResponse({'event': event_data})
+            return JsonResponse({'event': event_data},status=200)
         else:
             return JsonResponse({'error': 'Event not found'}, status=404)
     except Exception as e:
@@ -114,7 +118,9 @@ def update_event(request, event_id):
             sport_id = str(data['sport_id'])
             status = data['status']
             # scheduled_start = data['scheduled_start']
-            
+            if not all([name, slug, event_type, sport_id, status]) or active is None:
+                return JsonResponse({'error': 'Invalid data. Missing required fields.'}, status=400)
+
 
             with connection.cursor() as cursor:
                 # Execute raw SQL query to update a specific event by ID
@@ -133,7 +139,7 @@ def update_event(request, event_id):
                     )
             check_event_active(sport_id)
             cache.delete('all_events')
-            return JsonResponse({'message': 'Event updated'})
+            return JsonResponse({'message': 'Event updated'},status=200)
         else:
             return JsonResponse({'error': 'Event not found'}, status=404)
     except Exception as e:
@@ -148,7 +154,7 @@ def delete_event(request, event_id):
                 # Execute raw SQL query to delete a specific event by ID
                 cursor.execute("DELETE FROM event WHERE id = %s", [event_id])
             cache.delete('all_events')
-            return JsonResponse({'message': 'Event deleted'})
+            return JsonResponse({'message': 'Event deleted'},status=200)
         else:
             return JsonResponse({'error': 'Event not found'}, status=404)
     except Exception as e:
@@ -187,6 +193,10 @@ def activate_event(request):
         active = data['active']
         event_id = data['event_id']
         sport_id = data['sport_id']
+
+        if not all([event_id, sport_id]) or active is None:
+            return JsonResponse({'error': 'Invalid data. Missing required fields.'}, status=400)
+
         if get_event_by_id(event_id):
             with connection.cursor() as cursor:
                 # Execute raw SQL query to update a active field of event by ID
@@ -197,7 +207,7 @@ def activate_event(request):
             # if active == False:
             check_event_active(sport_id)
 
-            return JsonResponse({'message': 'Event status changed'})
+            return JsonResponse({'message': 'Event status changed'},status=200)
         else:
             return JsonResponse({'error': 'Event not found'}, status=404)
     except Exception as e:
@@ -211,6 +221,11 @@ def change_event_status(request):
         data = json.loads(request.body)
         event_id = data['event_id']
         status = data['status']
+
+        if not all([status, event_id]):
+            return JsonResponse({'error': 'Invalid data. Missing required fields.'}, status=400)
+
+
         if get_event_by_id(event_id):
             with connection.cursor() as cursor:
                 # Execute raw SQL query to update a active field of event by ID
@@ -227,7 +242,7 @@ def change_event_status(request):
                     )
 
            
-            return JsonResponse({'message': 'Event status changed'})
+            return JsonResponse({'message': 'Event status changed'},status=200)
         else:
             return JsonResponse({'error': 'Event not found'}, status=404)
     except Exception as e:
@@ -310,7 +325,7 @@ def search_event(request):
             if threshold != '' and threshold >0:
                 query += '''
                         GROUP BY e.id
-                        HAVING COUNT(s.id) > %s
+                        HAVING COUNT(active_selection_count) > %s
                         '''
                 params.append(threshold)
 
@@ -338,7 +353,7 @@ def search_event(request):
                     'actual_start' : actual_start,
                 }
                 event_list.append(event_data)
-    return JsonResponse({'events': event_list})
+    return JsonResponse({'events': event_list},status=200)
 
 def local_to_utc(dt,tz):
 

@@ -21,6 +21,10 @@ def create_selection(request):
         active = data['active']
         outcome = data['outcome']
 
+        if not all([name, event_id, price, outcome]) or active is None:
+            return JsonResponse({'error': 'Invalid data. Missing required fields.'}, status=400)
+
+
         with connection.cursor() as cursor:
             # Execute raw SQL query to insert a new selection
             cursor.execute(
@@ -29,7 +33,7 @@ def create_selection(request):
                 [name, event_id, price, active, outcome]
             )
 
-        return JsonResponse({'message': 'Selection created'})
+        return JsonResponse({'message': 'Selection created'},status=200)
     except Exception as e:
         # Handle other unexpected exceptions
         return JsonResponse({'error': 'An error occurred '+ str(e)}, status=500)
@@ -63,7 +67,7 @@ def get_all_selections(request):
             # Data retrieved from cache
             selection_list = selections
 
-        return JsonResponse({'selections': selection_list})
+        return JsonResponse({'selections': selection_list},status=200)
     except Exception as e:
         # Handle other unexpected exceptions
         return JsonResponse({'error': 'An error occurred '+ str(e)}, status=500)
@@ -88,7 +92,7 @@ def get_selection(request, selection_id):
                 'outcome': selection[4],
                 'sport_id': selection[13]
             }
-            return JsonResponse({'selection': selection_data})
+            return JsonResponse({'selection': selection_data},status=200)
         else:
             return JsonResponse({'error': 'Selection not found'}, status=404)
     except Exception as e:
@@ -108,6 +112,10 @@ def update_selection(request, selection_id):
             active = data['active']
             outcome = data['outcome']
 
+            if not all([name, event_id,sport_id, price, outcome]) or active is None:
+                return JsonResponse({'error': 'Invalid data. Missing required fields.'}, status=400)
+
+
             with connection.cursor() as cursor:
                 # Execute raw SQL query to update a specific selection by ID
                 cursor.execute(
@@ -119,7 +127,7 @@ def update_selection(request, selection_id):
             # if active == False:
             check_selection_active(event_id,sport_id)
             cache.delete('all_selections')
-            return JsonResponse({'message': 'Selection updated'})
+            return JsonResponse({'message': 'Selection updated'},status=200)
         else:
             return JsonResponse({'error': 'Selection not found'}, status=404)
     except Exception as e:
@@ -134,7 +142,7 @@ def delete_selection(request, selection_id):
                 # Execute raw SQL query to delete a specific selection by ID
                 cursor.execute("DELETE FROM selection WHERE id = %s", [selection_id])
             cache.delete('all_selections')
-            return JsonResponse({'message': 'Selection deleted'})
+            return JsonResponse({'message': 'Selection deleted'},status=200)
         else:
             return JsonResponse({'error': 'Selection not found'}, status=404)
     except Exception as e:
@@ -152,6 +160,10 @@ def activate_selection(request):
         sport_id = data['sport_id']
         event_id = data['event_id']
         selection_id = data['selection_id']
+
+        if not all([event_id, sport_id, selection_id]) or active is None:
+            return JsonResponse({'error': 'Invalid data. Missing required fields.'}, status=400)
+
         if get_selection_by_id(selection_id):
             with connection.cursor() as cursor:
                 # Execute raw SQL query to update a active field of selection by ID
@@ -162,7 +174,7 @@ def activate_selection(request):
             # if active == False:
             check_selection_active(event_id,sport_id)
 
-            return JsonResponse({'message': 'Selection status changed'})
+            return JsonResponse({'message': 'Selection status changed'},status=200)
         else:
             return JsonResponse({'error': 'Selection not found'}, status=404)
     except Exception as e:
@@ -177,13 +189,16 @@ def change_selection_outcome(request):
         data = json.loads(request.body)
         selection_id = data['selection_id']
         outcome = data['outcome']
+        if not all([outcome, selection_id]):
+            return JsonResponse({'error': 'Invalid data. Missing required fields.'}, status=400)
+
         if get_selection_by_id(selection_id):
             with connection.cursor() as cursor:
                 cursor.execute(
                     "UPDATE selection SET outcome = %s WHERE id = %s",
                     [outcome, selection_id]
                 )
-            return JsonResponse({'message': 'Selection outcome changed'})
+            return JsonResponse({'message': 'Selection outcome changed'},status=200)
         else:
             return JsonResponse({'error': 'Selection not found'}, status=404)
     except Exception as e:
@@ -283,12 +298,10 @@ def search_selection(request):
                 elif price_condtion == 'eq':
                     query += " AND price = %s "
                     params.append(price_from)
-                else:
-                    if price_from != '' and price_to != '':    
-                        if price_condtion == 'bw':
-                            query += " AND price >= %s AND price <= %s"
-                            params.append(price_from)
-                            params.append(price_to)
+                elif price_condtion == 'bw' and price_to !='':
+                    query += " AND price >= %s AND price <= %s"
+                    params.append(price_from)
+                    params.append(price_to)
 
             cursor.execute(query, params)
 
@@ -305,4 +318,4 @@ def search_selection(request):
                     'sport_id': selection[13]
                 }
                 selection_list.append(selection_data)
-    return JsonResponse({'selections': selection_list})
+    return JsonResponse({'selections': selection_list},status=200)

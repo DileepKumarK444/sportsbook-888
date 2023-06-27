@@ -169,6 +169,27 @@ def activate_selection(request):
         # Handle other unexpected exceptions
         return JsonResponse({'error': 'An error occurred '+ str(e)}, status=500)
 
+
+@csrf_exempt
+@require_http_methods(["PUT"])
+def change_selection_outcome(request):
+    try:
+        data = json.loads(request.body)
+        selection_id = data['selection_id']
+        outcome = data['outcome']
+        if get_selection_by_id(selection_id):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE selection SET outcome = %s WHERE id = %s",
+                    [outcome, selection_id]
+                )
+            return JsonResponse({'message': 'Selection outcome changed'})
+        else:
+            return JsonResponse({'error': 'Selection not found'}, status=404)
+    except Exception as e:
+        # Handle other unexpected exceptions
+        return JsonResponse({'error': 'An error occurred '+ str(e)}, status=500)
+
 def check_selection_active(event_id,sport_id):
     with connection.cursor() as cursor:
                     # Execute raw SQL query to check if all selections are inactive

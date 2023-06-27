@@ -204,6 +204,36 @@ def activate_event(request):
         # Handle other unexpected exceptions
         return JsonResponse({'error': 'An error occurred '+ str(e)}, status=500)
 
+@csrf_exempt
+@require_http_methods(["PUT"])
+def change_event_status(request):
+    try:
+        data = json.loads(request.body)
+        event_id = data['event_id']
+        status = data['status']
+        if get_event_by_id(event_id):
+            with connection.cursor() as cursor:
+                # Execute raw SQL query to update a active field of event by ID
+                cursor.execute(
+                    "UPDATE event SET status = %s WHERE id = %s",
+                    [status, event_id]
+                )
+
+            if status == 'Started':
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "UPDATE event SET actual_start = %s WHERE id = %s",
+                        [datetime.utcnow(), event_id]
+                    )
+
+           
+            return JsonResponse({'message': 'Event status changed'})
+        else:
+            return JsonResponse({'error': 'Event not found'}, status=404)
+    except Exception as e:
+        # Handle other unexpected exceptions
+        return JsonResponse({'error': 'An error occurred '+ str(e)}, status=500)
+
 def get_event_by_id(event_id):
     with connection.cursor() as cursor:
         # Execute raw SQL query to fetch a specific event by ID

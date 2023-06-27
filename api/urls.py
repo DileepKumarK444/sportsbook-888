@@ -17,6 +17,7 @@ urlpatterns = [
     path('events/update/<int:event_id>/', events.update_event, name='update_event'),
     path('events/delete/<int:event_id>/', events.delete_event, name='delete_event'),
     path('events/active/', events.activate_event, name='activate_event'),
+    path('events/status/', events.change_event_status, name='change_event_status'),
     path('events/search/', events.search_event, name='search_event'),
 
     path('selections/create/', selections.create_selection, name='create_selection'),
@@ -26,6 +27,7 @@ urlpatterns = [
     path('selections/delete/<int:selection_id>/', selections.delete_selection, name='delete_selection'),
     path('selections/active/', selections.activate_selection, name='activate_selection'),
     path('selections/search/', selections.search_selection, name='search_selection'),
+    path('selections/outcome/', selections.change_selection_outcome, name='change_selection_outcome'),
 
     
 ]

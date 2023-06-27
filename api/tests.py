@@ -382,6 +382,7 @@ class SearchSelectionTestCase(TestCase):
     def setUp(self):
         self.client = Client()
         # Insert sample data into the database for testing
+        self.url = reverse('search_selection')
         sport = Sport.objects.create(name='Football', slug='football', active=True)
         event = Event.objects.create(
             name='Match 1',
@@ -411,5 +412,5 @@ class SearchSelectionTestCase(TestCase):
             'price_condtion': 'bw'
         }
 
-        response = self.client.post('/search-selection/', json.dumps(data), content_type='application/json')
+        response = self.client.post(self.url, json.dumps(data), content_type='application/json')
         self.assertEqual(response.status_code, 200)

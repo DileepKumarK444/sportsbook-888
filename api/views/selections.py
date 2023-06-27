@@ -124,7 +124,6 @@ def update_selection(request, selection_id):
                     [name, event_id, price, active, outcome, selection_id]
                 )
 
-            # if active == False:
             check_selection_active(event_id,sport_id)
             cache.delete('all_selections')
             return JsonResponse({'message': 'Selection updated'},status=200)

@@ -31,6 +31,7 @@ def create_sport(request):
     except Exception as e:
         # Handle other unexpected exceptions
         return JsonResponse({'error': 'An error occurred'+str(e)}, status=500)
+
 @require_http_methods(["GET"])
 def get_all_sports(request):
     try:
@@ -170,23 +171,12 @@ def search_sport(request):
         with connection.cursor() as cursor:
             params = []
             if threshold != '' and threshold >0:
-                # query = "SELECT * FROM sport as s INNER JOIN event as e on s.id = e.sport_id WHERE e.active=true "    
-                # query = '''SELECT * FROM sport as s JOIN ( 
-                #         SELECT sport_id, COUNT(*) AS active_count 
-                #         FROM event 
-                #         WHERE active = 1 
-                #         GROUP BY sport_id 
-                #         ) AS event_count 
-                #         ON s.id = event_count.sport_id 
-                #         WHERE event_count.active_count > %s'''
-
                 query = '''
                         SELECT s.*, COUNT(e.id) AS active_events_count
                         FROM sport AS s
                         INNER JOIN event AS e ON s.id = e.sport_id
                         WHERE e.active = 1 
                         '''
-                # params.append(threshold)
             else:
                 query = "SELECT * FROM sport as s WHERE 1=1"
             
@@ -207,7 +197,6 @@ def search_sport(request):
             cursor.execute(query, params)
 
             sports = cursor.fetchall()
-            # print('sports',sports)
             sport_list = []
             for sport in sports:
                 sport_data = {
@@ -217,7 +206,3 @@ def search_sport(request):
                 }
                 sport_list.append(sport_data)
     return JsonResponse({'sports': sport_list})
-
-    # Add more conditions as needed
-
-    

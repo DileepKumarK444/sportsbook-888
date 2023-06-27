@@ -163,8 +163,7 @@ def delete_event(request, event_id):
 
 
 def check_event_active(sport_id):
-    # if active == False:
-    # Check if all events for the sport are inactive
+    
     with connection.cursor() as cursor:
         # Execute raw SQL query to check if all events of the sport are inactive
         cursor.execute(
@@ -204,7 +203,6 @@ def activate_event(request):
                     "UPDATE event SET active = %s WHERE id = %s",
                     [active, event_id]
                 )
-            # if active == False:
             check_event_active(sport_id)
 
             return JsonResponse({'message': 'Event status changed'},status=200)
@@ -285,17 +283,7 @@ def search_event(request):
         with connection.cursor() as cursor:
             params = []
             if threshold != '' and threshold >0:
-                # query = "SELECT * FROM event as e INNER JOIN selection as s on e.id = s.event_id WHERE s.active=true "    
-                # query = '''SELECT * FROM event as e JOIN ( 
-                #         SELECT event_id, COUNT(*) AS active_count 
-                #         FROM selection 
-                #         WHERE active = 1 
-                #         GROUP BY event_id 
-                #         ) AS selection_count 
-                #         ON e.id = selection_count.event_id 
-                #         WHERE selection_count.active_count > %s '''
-                # params.append(threshold)
-                query = '''
+               query = '''
                         SELECT e.*, COUNT(s.id) AS active_selection_count
                         FROM event AS e
                         INNER JOIN selection AS s ON e.id = s.event_id

@@ -7,21 +7,16 @@ class Sport(models.Model):
 
     class Meta:
         db_table = 'sport'
-
     def __str__(self):
         return self.name
 
-    
-
 class Event(models.Model):
-
     STATUS_CHOICES = [
         ('Pending', 'Pending'),
         ('Started', 'Started'),
         ('Ended', 'Ended'),
         ('Cancelled', 'Cancelled')
     ]
-
 
     name = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255, unique=True)
@@ -34,7 +29,6 @@ class Event(models.Model):
 
     class Meta:
         db_table = 'event'
-
     def __str__(self):
         return self.name
 
@@ -54,8 +48,5 @@ class Selection(models.Model):
 
     class Meta:
         db_table = 'selection'
-        
     def __str__(self):
         return self.name
-
-    

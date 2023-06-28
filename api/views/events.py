@@ -325,9 +325,9 @@ def search_event(request):
                 scheduled_start = ''
                 actual_start = ''
 
-                if event[8] != None and timezone != '':
+                if event[8] is not None and timezone != '':
                     scheduled_start = utc_to_local(event[8],timezone)
-                if event[6] != None and timezone != '':
+                if event[6] is not None and timezone != '':
                     actual_star = utc_to_local(event[6],timezone)
                 event_data = {
                     'id': event[0],

@@ -5,11 +5,13 @@ class Sport(models.Model):
     slug = models.SlugField(max_length=255, unique=True)
     active = models.BooleanField(default=True)
 
+    class Meta:
+        db_table = 'sport'
+
     def __str__(self):
         return self.name
 
-    class Meta:
-        db_table = 'sport'
+    
 
 class Event(models.Model):
 
@@ -30,11 +32,11 @@ class Event(models.Model):
     scheduled_start = models.DateTimeField(blank=True,null=True)
     actual_start = models.DateTimeField(null=True, blank=True)
 
-    def __str__(self):
-        return self.name
-
     class Meta:
         db_table = 'event'
+
+    def __str__(self):
+        return self.name
 
 class Selection(models.Model):
     OUTCOME_CHOICES = (
@@ -50,8 +52,10 @@ class Selection(models.Model):
     active = models.BooleanField(default=True)
     outcome = models.CharField(max_length=255, choices=OUTCOME_CHOICES)
 
+    class Meta:
+        db_table = 'selection'
+        
     def __str__(self):
         return self.name
 
-    class Meta:
-        db_table = 'selection'
+    
